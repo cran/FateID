@@ -13,7 +13,7 @@ knitr::opts_chunk$set(fig.width=8, fig.height=8)
 ```
 ## Prerequisites
 
-This manual explains how to run the FateID algorithm on sample data. FateID is a method for the quantification of cell fate bias in single cell transcriptome datasets comprising different cell types that emerge from a common progenitor. The progenitor populations are expected to be part of the dataset and the FateID algorithm was designed to learn a pre-existing bias of each progenitor cell to one or multiple alternative terminal fates. The strategy of the algorithm is to apply an iterative random forest classification [@RandomForests] in order to quantify fate bias in increasingly naive progenitors using cells that have been classified in previous iterations as training set.
+This manual explains how to run the FateID algorithm on sample data. FateID is a method for the quantification of cell fate bias in single cell transcriptome datasets comprising different cell types that emerge from a common progenitor [@FateID]. The progenitor populations are expected to be part of the dataset and the FateID algorithm was designed to learn a pre-existing bias of each progenitor cell to one or multiple alternative terminal fates. The strategy of the algorithm is to apply an iterative random forest classification [@RandomForests] in order to quantify fate bias in increasingly naive progenitors using cells that have been classified in previous iterations as training set.
 
 FateID can be directly installed from CRAN:
 ```{r eval = FALSE}
@@ -29,7 +29,7 @@ library(FateID)
 In the following sections we describe the application of FateID on sample data. 
 We do not explain all input and return arguments of the FateID functions in detail, since extensive description is available in the man pages for all of the functions.
 
-##	Input data
+## Input data
 
 The algorithm requires an expression data frame as input with cells as columns and genes as features. Column names are expected to correspond to cell IDs and row names are expected to correspond to gene IDs.
 
@@ -364,6 +364,25 @@ For bug reports and any questions related to FateID please email directly to [li
 
 ---
 references:
+
+- id: FateID
+  type: article-journal
+  author:
+  - family: Herman
+    given: J. S.
+  - family: Sagar
+    given:
+  - family: Grün
+    given: D.
+  issued:
+  - year: '2018'
+    month: '5'
+  title: '[FateID infers cell fate bias in multipotent progenitors from single-cell RNA-seq data]{.nocase}'
+  container-title: Nat. Methods
+  page: '379-386'
+  volume: '15'
+  issue: '5'
+  
 - id: Census
   type: article-journal
   author:

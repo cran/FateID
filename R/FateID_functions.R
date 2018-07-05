@@ -29,6 +29,7 @@ getFeat <- function(x,y,tar,fpv=.05,...){
   xf <- x[g,]
   xf
 }
+
 #' @title Inference of a cell type partition
 #'
 #' @description This function performs an inference of a cell type partition based on the expression of marker genes.
@@ -100,7 +101,6 @@ getPart <- function(x,FMarker,fthr=NULL,n=25){
 #' @importFrom stats quantile cor
 #' @importFrom randomForest randomForest
 #' @export
-
 reclassify <- function(x,y,tar,z=NULL,clthr=.75,nbfactor=5,use.dist=FALSE,seed=NULL,nbtree=NULL,q=.9,...){
   if (!is.null(seed) ) set.seed(seed)
   
@@ -145,7 +145,6 @@ reclassify <- function(x,y,tar,z=NULL,clthr=.75,nbfactor=5,use.dist=FALSE,seed=N
   g <- unique(g)
   return(list(part=y,rf=rf,xf=x[g,]))
 }
-
 
 #' @title Computation of fate bias
 #'
@@ -367,11 +366,11 @@ compdr <- function(x,z=NULL,m=c("tsne","cmd","dm","lle"),k=c(2,3),lle.n=30,dm.si
 #' @param m name of the dimensional reduction algorithms to be used for the principal curve computation. One of \code{lle}, \code{cmd}, \code{dm}, \code{tsne}. Default value is \code{cmd}. Has to be a component of \code{dr}, i.e. previously computed by \code{compdr}.
 #' @param trthr real value representing the threshold of the fraction of random forest votes required for the inclusion of a given cell for the computation of the principal curve. If \code{NULL} then only cells with a significant bias >1 are included for each trajectory. The bias is computed as the ratio of the number of votes for a trajectory and the number of votes for the trajectory with the second largest number of votes. By this means only the trajectory with the largest number of votes will receive a bias >1. The siginifcance is computed based on counting statistics on the difference in the number of votes. A significant bias requires a p-value < 0.05. Default value is \code{NULL}.
 #' @param start integer number representing a specified starting cluster number for all trajectories, i. e. a common progenitor cluster. The argument is optional. Default value is \code{NULL}.
-#' @param  ... additional arguments to be passed to the low level function \code{principal.curve}.
+#' @param  ... additional arguments to be passed to the low level function \code{principal_curve}.
 #' @details The function computes a principal curve for each differentiation trajectory by considering only cells that are assigned to the trajectory with a significant fate bias >1 or at least \code{trthr} of the random forest votes, respectively.
 #' @details For simulateneous computation and plotting of the principal curve, see function \code{plotFateMap}.
 #' @return A list of the following two components:
-#'   \item{pr}{A list of principal curve objects produced by the \code{principal.curve} function from the \pkg{princurve} package. Each component corresponds to one differentiation trajectory giving rise to one of the target clusters from the \code{fb} object.}
+#'   \item{pr}{A list of principal curve objects produced by the \code{principal_curve} function from the \pkg{princurve} package. Each component corresponds to one differentiation trajectory giving rise to one of the target clusters from the \code{fb} object.}
 #'   \item{trc}{A list of ordered cell IDs for each trajectory in \code{pr}.}
 #' @examples
 #'
@@ -383,7 +382,7 @@ compdr <- function(x,z=NULL,m=c("tsne","cmd","dm","lle"),k=c(2,3),lle.n=30,dm.si
 #' pr <- prcurve(y,fb,dr,k=2,m="cmd",trthr=0.25,start=NULL)
 #'
 #' @importFrom stats median
-#' @importFrom princurve principal.curve
+#' @importFrom princurve principal_curve
 #' @export
 prcurve <- function(y,fb,dr,k=2,m="cmd",trthr=NULL,start=NULL,...){
   pr <- list()
@@ -399,7 +398,7 @@ prcurve <- function(y,fb,dr,k=2,m="cmd",trthr=NULL,start=NULL,...){
         gs <- names(y) %in% rownames(fb$votes)[b$bias[,j] > 1 & b$pv < .05]
       }
       gs <- gs & y %in% c(start,as.numeric(sub("t","",j)))
-      st <- principal.curve(as.matrix(dr[[m]][[paste("D",k,sep="")]][gs,]),plot.true=FALSE,...)
+      st <- principal_curve(as.matrix(dr[[m]][[paste("D",k,sep="")]][gs,]),plot_iterations=FALSE,...)
     }
     # infer final curve
     if ( !is.null(trthr) ){
@@ -422,18 +421,18 @@ prcurve <- function(y,fb,dr,k=2,m="cmd",trthr=NULL,start=NULL,...){
     f[1:nrow(xa)] <- TRUE
 
     if ( is.null(start) ){
-      pr[[j]] <- principal.curve(as.matrix(xt),plot.true=FALSE,...)
+      pr[[j]] <- principal_curve(as.matrix(xt),plot_iterations=FALSE,...)
     }else{
-      pr[[j]] <- principal.curve(as.matrix(xt),plot.true=FALSE,start=st$s[st$tag,],...)
+      pr[[j]] <- principal_curve(as.matrix(xt),plot_iterations=FALSE,start=st$s[st$ord,],...)
     }
     pr[[j]]$s <- pr[[j]]$s[f,]
-    pr[[j]]$tag <- pr[[j]]$tag[pr[[j]]$tag <= sum(f)]
+    pr[[j]]$ord <- pr[[j]]$ord[pr[[j]]$ord <= sum(f)]
     rownames(pr[[j]]$s) <- names(y)[g]
   }
 
   trc <- list()
   for ( j in names(fb$tr) ){
-    n <- names(y)[names(y) %in% rownames(pr[[j]]$s)][pr[[j]]$tag]
+    n <- names(y)[names(y) %in% rownames(pr[[j]]$s)][pr[[j]]$ord]
     trc[[j]] <- n
     if (length(unique(y[n])) > 1){
       if ( median((1:length(n))[y[n] == sub("t","",j)]) < median((1:length(n))[y[n] != sub("t","",j)]) ) trc[[j]] <- rev(trc[[j]])
@@ -587,7 +586,7 @@ plot3dmap <- function(d,x,y,g=NULL,n=NULL,col=NULL,tp=1,logsc=FALSE){
 #' @param trthr real value representing the threshold of the fraction of random forest votes required for the inclusion of a given cell for the computation of the principal curve. If \code{NULL} then only cells with a significant bias >1 are included for each trajectory. The bias is computed as the ratio of the number of votes for a trajectory and the number of votes for the trajectory with the second largest number of votes. By this means only the trajectory with the largest number of votes will receive a bias >1. The siginifcance is computed based on counting statistics on the difference in the number of votes. A significant bias requires a p-value < 0.05. Default value is \code{NULL}.
 #' @param start integer number representing a specified starting cluster number for all trajectories, i. e. a common progenitor cluster. The argument is optional. Default value is \code{NULL}.
 #' @param tp Transparency of points in the plot to allow better visibility of the principal curves. Default value is 1, i. e. non-transparent.
-#' @param  ... additional arguments to be passed to the low level function \code{principal.curve}.
+#' @param  ... additional arguments to be passed to the low level function \code{principal_curve}.
 #' @return If \code{fb} is provided as input argument and \code{prc} equals \code{TRUE} then the output corresponds to the output of \code{prcurve}. Otherwise, only ouput is generated is \code{g} equals E. In this case a vector of fate bias entropies for all cells is given.
 #' @examples
 #'
@@ -633,7 +632,7 @@ plotFateMap <- function(y,dr,x=NULL,g=NULL,n=NULL,prc=FALSE,logsc=FALSE,k=2,m="c
     plot2dmap(d,x=x,y=y,g=g,n=n,col=col,tp=tp,logsc=logsc)
     if ( is.null(g) & ! is.null(fb) & prc){
       for ( j in 1:length(names(pr)) ){
-        lines(pr[[j]]$s[pr[[j]]$tag,kr[1]],pr[[j]]$s[pr[[j]]$tag,kr[2]],lwd=2,lty=j)
+        lines(pr[[j]]$s[pr[[j]]$ord,kr[1]],pr[[j]]$s[pr[[j]]$ord,kr[2]],lwd=2,lty=j)
       }
       legend("topleft",names(pr),lty=1:length(names(pr)))
     }
@@ -642,7 +641,7 @@ plotFateMap <- function(y,dr,x=NULL,g=NULL,n=NULL,prc=FALSE,logsc=FALSE,k=2,m="c
     plot3dmap(d,x=x,y=y,g=g,n=n,col=col,tp=tp,logsc=logsc)
     if ( is.null(g) & ! is.null(fb) & prc ){
       for ( j in 1:length(names(pr)) ){
-        lines3d(pr[[j]]$s[pr[[j]]$tag,kr[1]],pr[[j]]$s[pr[[j]]$tag,kr[2]],pr[[j]]$s[pr[[j]]$tag,kr[3]],lwd=2,lty=j)
+        lines3d(pr[[j]]$s[pr[[j]]$ord,kr[1]],pr[[j]]$s[pr[[j]]$ord,kr[2]],pr[[j]]$s[pr[[j]]$ord,kr[3]],lwd=2,lty=j)
       }
     }
   }
@@ -656,6 +655,7 @@ plotFateMap <- function(y,dr,x=NULL,g=NULL,n=NULL,prc=FALSE,logsc=FALSE,k=2,m="c
     }
   }
 }
+
 #' @title Comparative plot of the expression levels of two genes
 #'
 #' @description This function produces a scatter plot of the expression levels of two genes. It allows plotting cells of selected clusters and permits highlighting of the fate bias.
@@ -914,7 +914,6 @@ filterset <- function(x,n=NULL,minexpr=2,minnumber=1){
   x[apply(x[,n] >= minexpr,1,sum) >= minnumber,n]
 }
 
-
 #' @title Topological ordering of pseudo-temporal expression profiles
 #'
 #' @description This function computes a topological ordering of pseudo-temporal expression profiles of all genes by using 1-dimensional self-organizing maps.
@@ -944,7 +943,7 @@ filterset <- function(x,n=NULL,minexpr=2,minnumber=1){
 #' }
 #'
 #' @importFrom stats var predict loess
-#' @importFrom caTools runmean
+#' @importFrom zoo rollmean
 #' @importFrom som som
 #' @export
 getsom <- function(x,nb=1000,k=5,locreg=TRUE,alpha=.5){
@@ -952,7 +951,7 @@ getsom <- function(x,nb=1000,k=5,locreg=TRUE,alpha=.5){
     x <- t(apply(x,1,function(x,alpha){ v <- 1:length(x); predict(loess( x ~ v, span=alpha ))},alpha=alpha))
     x <- t(apply(x,1,function(x){ x[x<0] <- .1; x }))
   }else{
-    x <- t(apply(x,1,runmean,k=k))
+    x <- t(apply(x,1,rollmean,k=k))
   }
   x <- x/apply(x,1,sum)
   zs <- ( x - apply(x,1,mean) )/sqrt ( apply(x,1,var) )
@@ -1131,6 +1130,7 @@ plotheatmap <- function(x,xpart=NULL,xcol=NULL,xlab=TRUE,xgrid=FALSE,ypart=NULL,
         xaxt="n")
   layout(1)
 }
+
 #' @title Plotting of pseudo-temporal expression profiles
 #'
 #' @description This function allows plotting pseudo-temporal expression profiles for single genes or groups of genes.
@@ -1169,7 +1169,7 @@ plotheatmap <- function(x,xpart=NULL,xcol=NULL,xlab=TRUE,xgrid=FALSE,ypart=NULL,
 #' @importFrom grDevices rainbow colorRampPalette adjustcolor
 #' @importFrom graphics layout plot points text image abline axis box legend lines par
 #' @importFrom stats loess predict
-#' @importFrom caTools runmean
+#' @importFrom zoo rollmean
 #' @export
 plotexpression <- function(x,y,g,n,col=NULL,name=NULL,cluster=FALSE,k=5,locreg=FALSE,alpha=.5,types=NULL){
   cl <- unique(y[n])
@@ -1204,12 +1204,12 @@ plotexpression <- function(x,y,g,n,col=NULL,name=NULL,cluster=FALSE,k=5,locreg=F
   }
   u <- 1:length(n)
   if ( locreg ){
-    v <- t(z)
+    v <- as.vector(t(z))
     zc <- predict(loess( v ~ u, span=alpha ))
     zc[zc<0] <- .1
     lines(u,zc)
   }else{
-    lines(u,runmean(t(z),k=k))
+    lines(u,rollmean(t(z),k=k))
   }
   
   if ( !is.null(types) ) legend("topleft", legend=sort(unique(types)), col=coloc, pch=syms)
