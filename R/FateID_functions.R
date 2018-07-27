@@ -108,8 +108,8 @@ reclassify <- function(x,y,tar,z=NULL,clthr=.75,nbfactor=5,use.dist=FALSE,seed=N
   di <- if ( is.null(z) ) as.data.frame( 1 - cor(x) ) else as.data.frame(as.matrix(z))
 
   # order of columns/rows in z has to be the same as order of columns in x
-  names(di) <- rownames(di) <- names(x)
-  names(y)  <- names(x)
+  names(di) <- rownames(di) <- colnames(x)
+  names(y)  <- colnames(x)
   # assign whether distances or expression values should be used for random forest classification
   if ( use.dist ){
     d <- di
@@ -133,7 +133,7 @@ reclassify <- function(x,y,tar,z=NULL,clthr=.75,nbfactor=5,use.dist=FALSE,seed=N
   rf <- randomForest(xr,as.factor(pr),xt,nbtree=nbtree,norm.votes=TRUE,importance=TRUE,...)
   
   tv <- as.data.frame(rf$test$votes)
-  names(tv) <- paste("t",names(tv),sep="")
+  names(tv) <- paste("t",colnames(tv),sep="")
   for ( k in names(tv) ) y[rownames(tv)[tv[,k] > clthr]] <- as.numeric(sub("t","",k))
 
   g <- c()
@@ -152,9 +152,11 @@ reclassify <- function(x,y,tar,z=NULL,clthr=.75,nbfactor=5,use.dist=FALSE,seed=N
 #' @param x expression data frame with genes as rows and cells as columns. Gene IDs should be given as row names and cell IDs should be given as column names. This can be a reduced expression table only including the features (genes) to be used in the analysis.
 #' @param y clustering partition. A vector with an integer cluster number for each cell. The order of the cells has to be the same as for the columns of x.
 #' @param tar vector of integers representing target cluster numbers. Each element of \code{tar} corresponds to a cluster of cells committed towards a particular mature state. One cluster per different cell lineage has to be given and is used as a starting point for learning the differentiation trajectory.
-#' @param z Matrix containing cell-to-cell distances to be used in the fate bias computation. Default is \code{NULL}. In this case, a correlation-based distance is computed from \code{x} by \code{1 - cor(x)}
-#' @param minnr integer number of cells per target cluster to be selected for classification (test set) in each round of training. For each target cluster, the \code{minnr} cells with the highest similarity to a cell in the training set are selected for classification. If \code{z} is not \code{NULL} it is used as the similarity matrix for this step. Otherwise, \code{1-cor(x)} is used. Default value is 5.
-#' @param minnrh integer number of cells from the training set used for classification. From each training set, the \code{minnrh} cells with the highest similarity to the training set are selected. If \code{z} is not \code{NULL} it is used as the similarity matrix for this step. Default value is 10.
+#' @param z Matrix containing cell-to-cell distances to be used in the fate bias computation. Default is \code{NULL}. In this case, a correlation-based distance is computed from \code{x} by \code{1 - cor(x)}.
+#' @param minnr integer number of cells per target cluster to be selected for classification (test set) in each iteration. For each target cluster, the \code{minnr} cells with the highest similarity to a cell in the training set are selected for classification. If \code{z} is not \code{NULL} it is used as the similarity matrix for this step. Otherwise, \code{1-cor(x)} is used. Default value is \code{NULL} and \code{minnr} is estimated as the minimum of and 20 and half the median of target cluster sizes. 
+#' @param minnrh integer number of cells from the training set used for classification. From each training set, the \code{minnrh} cells with the highest similarity to the training set are selected. If \code{z} is not \code{NULL} it is used as the similarity matrix for this step. Default value is \code{NULL} and \code{minnrh} is estimated as the maximum of and 20 and half the median of target cluster sizes.
+#' @param adapt logical. If \code{TRUE} then the size of the test set for each target cluster is adapted based on the classification success in the previous iteration. For each target cluster, the number of successfully classified cells is determined, i.e. the number of cells with a minimum fraction of votes given by the \code{confidence} parameter for the target cluster, which gave rise to the inclusion of the cell in the test set (see \code{minnr}). Weights are then derived by dividing this number by the maximum across all clusters after adding a pseudocount of 1. The test set size \code{minnr} is rescaled for each cluster by the respective weight in the next iteration. Default is \code{TRUE}.
+#' @param confidence real number between 0 and 1. See \code{adapt} parameter. Default is 0.75.
 #' @param nbfactor positive integer number. Determines the number of trees grown for each random forest. The number of trees is given by the number of columns of th training set multiplied by \code{nbfactor}. Default value is 5.
 #' @param use.dist logical value. If \code{TRUE} then the distance matrix is used as feature matrix (i. e. \code{z} if not equal to \code{NULL} and \code{1-cor(x)} otherwise). If \code{FALSE}, gene expression values in \code{x} are used. Default is \code{FALSE}.
 #' @param seed integer seed for initialization. If equal to \code{NULL} then each run will yield slightly different results due to the radomness of the random forest algorithm. Default is \code{NULL}
@@ -171,16 +173,25 @@ reclassify <- function(x,y,tar,z=NULL,clthr=.75,nbfactor=5,use.dist=FALSE,seed=N
 #' x <- intestine$x
 #' y <- intestine$y
 #' tar <- c(6,9,13)
-#' fb <- fateBias(x,y,tar,z=NULL,minnr=5,minnrh=10,nbfactor=5,use.dist=FALSE,seed=NULL,nbtree=NULL)
+#' fb <- fateBias(x,y,tar,minnr=5,minnrh=20,adapt=TRUE,confidence=0.75,nbfactor=5)
 #' head(fb$probs)
 #' @importFrom stats binom.test cor median 
 #' @importFrom utils head
 #' @export
-fateBias <- function(x,y,tar,z=NULL,minnr=5,minnrh=10,nbfactor=5,use.dist=FALSE,seed=NULL,nbtree=NULL,...){
+fateBias <- function(x,y,tar,z=NULL,minnr=NULL,minnrh=NULL,adapt=TRUE,confidence=0.75,nbfactor=5,use.dist=FALSE,seed=NULL,nbtree=NULL,...){
+  if ( is.null(minnrh) ){
+    minnrh <- max(round(median(aggregate(rep(1,sum(y %in% tar)),by=list(y[y %in% tar]),FUN=sum)[,2])/2,0),20)
+  }
+  if ( is.null(minnr) ){
+    minnr  <- min(round(median(aggregate(rep(1,sum(y %in% tar)),by=list(y[y %in% tar]),FUN=sum)[,2])/2,0),20)
+  }
+  cat("minnr:",minnr,"\n")
+  cat("minnrh:",minnrh,"\n")
+
   if (!is.null(seed) ) set.seed(seed)
 
   if (!is.null(z) ) z <- as.matrix(z)
-  names(y) <- names(x)
+  names(y) <- colnames(x)
   tr    <- list()
   trall <- c()
   for ( k in tar){
@@ -192,7 +203,7 @@ fateBias <- function(x,y,tar,z=NULL,minnr=5,minnrh=10,nbfactor=5,use.dist=FALSE,
   di <- if ( is.null(z) ) as.data.frame( 1 - cor(x) ) else as.data.frame(as.matrix(z))
 
   # order of columns/rows in z has to be the same as order of columns in x
-  names(di) <- rownames(di) <- names(x)
+  colnames(di) <- rownames(di) <- colnames(x)
 
   # assign whether distances or expression values should be used for random forest classification
   if ( use.dist ){
@@ -204,13 +215,13 @@ fateBias <- function(x,y,tar,z=NULL,minnr=5,minnrh=10,nbfactor=5,use.dist=FALSE,
   # initialize matrix with probability of every cell to be assigned to each of the trajectories
   # cells of the target clusters are assigned to the target trajectory with probability 1
   probs <- as.data.frame(matrix(rep(1/length(tar),ncol(d)*length(tar)),ncol=length(tar)))
-  rownames(probs) <- names(d)
-  names(probs)    <- paste("t",tar,sep="")
+  rownames(probs) <- colnames(d)
+  colnames(probs)    <- paste("t",tar,sep="")
   
   for ( k in tar){
-    probs[names(d)[y == k],paste("t",k,sep="")] <- 1
+    probs[colnames(d)[y == k],paste("t",k,sep="")] <- 1
     for ( j in tar){
-      if ( j != k ) probs[names(d)[y == k],paste("t",j,sep="")] <- 0
+      if ( j != k ) probs[colnames(d)[y == k],paste("t",j,sep="")] <- 0
     }
   }
   # initialize matrix of votes
@@ -219,24 +230,28 @@ fateBias <- function(x,y,tar,z=NULL,minnr=5,minnrh=10,nbfactor=5,use.dist=FALSE,
   # iterate random forest classification until all cells are assigned
   i <- 0
   rfl <- list()
+  weights <- rep(1,length(tar))
+  names(weights) <- paste("t",tar,sep="")
+  
   while ( length(trall) < ncol(d) ){
     i <- i + 1
-
+    cat("test set size iteration",i,":",weights*minnr,"\n")
     # extract for each target trajectory the minnr cells from the pool of non-assigned cells closest to any of the cells on the trajectory
-    u <- di[trall,names(d)[ ! names(d) %in% trall]]
+    u <- di[trall,colnames(d)[ ! colnames(d) %in% trall]]
     nl <- list()
-    if ( sum(! names(d) %in% trall ) > 1 ){
+    if ( sum(! colnames(d) %in% trall ) > 1 ){
       n <- c()
       for ( k in tar ){
         f <- trall %in% tr[[paste("t",k,sep="")]]
         v <- apply(u[f,],2,median)
         v <- v[order(v,decreasing=FALSE)]
-        nl[[k]] <- head(names(v),minnr)
-        n <- append(n,head(names(v),minnr)) 
+        minnrL <- max(round(minnr * weights[paste("t",k,sep="")],0),1)
+        nl[[k]] <- head(names(v),minnrL)
+        n <- append(n,head(names(v),minnrL)) 
       }
       n <- unique(n)
     }else{
-      n <- names(d)[ ! names(d) %in% trall]
+      n <- colnames(d)[ ! colnames(d) %in% trall]
       for ( k in tar ){
         nl[[k]] <- n
       }
@@ -252,7 +267,7 @@ fateBias <- function(x,y,tar,z=NULL,minnr=5,minnrh=10,nbfactor=5,use.dist=FALSE,
       trt <- append(trt,head(names(v),minnrh))
     }
     trt <- unique(trt)  
-    cat("randomforest",i,length(n),"\n")
+    cat("randomforest iteration",i,"of", length(n),"cells\n")
 
     # assign feature matrix for random forest classification
     if ( use.dist ){
@@ -268,22 +283,32 @@ fateBias <- function(x,y,tar,z=NULL,minnr=5,minnrh=10,nbfactor=5,use.dist=FALSE,
     pr <- apply(probs[trt,],1,function(x,y) y[which(x == max(x))][1],y=tar)
  
     if ( is.null(nbtree) ) nbtree = ncol(xr)*nbfactor
-    rf <- randomForest(xr,as.factor(pr),xt,nbtree=nbtree,norm.votes=FALSE,importance=TRUE,...)
+    rf <- randomForest(xr,as.factor(pr),xt,nbtree=nbtree,norm.votes=FALSE,importance=TRUE)
     rfl[[i]] <- rf
     # update probability matrix based on random forest votes for test set
     tv <- as.data.frame(rf$test$votes)
-    names(tv) <- paste("t",names(tv),sep="")
-    for ( np in names(probs) ){
-      if ( ! np %in% names(tv) ){
+    names(tv) <- paste("t",colnames(tv),sep="")
+    for ( np in colnames(probs) ){
+      if ( ! np %in% colnames(tv) ){
         tv[,np] <- rep(0,nrow(tv))
       }
     }
     tvn <- tv
     tv  <- tv/apply(tv,1,sum)
-    probs[n,] <- tv[,names(probs)]
+    probs[n,] <- tv[,colnames(probs)]
     if ( i == 1 ) votes <- votes*max(apply(tvn,1,sum))
-    votes[n,] <- tvn[,names(votes)]
+    votes[n,] <- tvn[,colnames(votes)]
 
+    ## update weights
+    if ( adapt ){
+        for ( k in tar ){
+            l <- paste("t",k,sep="")
+            weights[l] <- sum( probs[n,l] > confidence ) + 1
+            ##weights[l] <- sum( probs[n,l] > min(.9,2*apply(probs[n, colnames(probs) != l],1,max) ) ) + 1
+            ##weights[l] <- max( sum( probs[nl[[k]],l] > 2*apply(probs[nl[[k]], colnames(probs) != l],1,max) ),1)/max(length(nl[[k]]),1)
+        }
+        weights <- weights/max(weights) 
+    }
     # update trajectories with cells that exhibit significant bias
     for ( k in names(votes)){
       b <- bias(tvn)
@@ -455,13 +480,14 @@ prcurve <- function(y,fb,dr,k=2,m="cmd",trthr=NULL,start=NULL,...){
 #' @return trc A list of ordered cell IDs for each trajectory giving rise to one of the targer clusters in \code{fb}
 #' @examples
 #'
+#' \donttest{
 #' x <- intestine$x
 #' y <- intestine$y
 #' tar <- c(6,9,13)
 #' fb <- fateBias(x,y,tar,z=NULL,minnr=5,minnrh=10,nbfactor=5,use.dist=FALSE,seed=NULL,nbtree=NULL)
 #' dr <- compdr(x,z=NULL,m="cmd",k=2,lle.n=30,dm.sigma=1000,dm.distance="euclidean",tsne.perplexity=30)
 #' trc <- dptTraj(x,y,fb,trthr=.25,distance="euclidean",sigma=1000)
-#'
+#' }
 #' @importFrom stats median
 #' @export
 dptTraj <- function(x,y,fb,trthr=NULL,distance="euclidean",sigma=1000,...){
@@ -760,7 +786,6 @@ gene2gene <- function(x,y,g1,g2,clusters=NULL,fb=NULL,tn=NULL,col=NULL,tp=1,plot
 #' B <- rownames(fb$probs)[fb$probs[,"t13"] > .3]
 #' de <- diffexpnb(v,A=A,B=B)
 #'
-#' @importFrom DESeq2 DESeqDataSetFromMatrix DESeq results
 #' @importFrom stats var approxfun fitted lm coef dnbinom p.adjust
 #' @importFrom locfit locfit
 #' @export
@@ -770,9 +795,9 @@ diffexpnb <- function(x,A,B,DESeq=FALSE,method="pooled",norm=FALSE,vfit=NULL,loc
   if ( DESeq ){
     # run on sc@expdata
     des <- data.frame( row.names = colnames(x), condition = factor(c( rep(1,length(A)), rep(2,length(B)) )), libType = rep("single-end", dim(x)[2]))
-    cds <- DESeqDataSetFromMatrix(countData=round(x,0),colData=des,design =~ condition,...) 
-    cds <- DESeq(cds,fitType='local')
-    res <- results(cds)
+    cds <- DESeq2::DESeqDataSetFromMatrix(countData=round(x,0),colData=des,design =~ condition,...) 
+    cds <- DESeq2::DESeq(cds,fitType='local')
+    res <- DESeq2::results(cds)
     list(des=des,cds=cds,res=res)
   }else{
     if (norm) x <- as.data.frame( t(t(x)/apply(x,2,sum))*min(apply(x,2,sum,na.rm=TRUE)) )
@@ -899,18 +924,20 @@ plotdiffgenesnb <- function(x,pthr=.05,padj=TRUE,lthr=0,mthr=-Inf,Aname=NULL,Bna
 #' @param minnumber positive integer number. This is the minimum number of cells in which a gene needs to be expressed at least at a level of \code{minexpr}. All genes that do not fulfill this criterion are removed. The default value is 1.
 #' @return Reduced expression data frame with genes as rows and cells as columns in the same order as in \code{n}.
 #' @examples
+#' \donttest{
 #' x <- intestine$x
 #' y <- intestine$y
 #' v <- intestine$v
-#' 
+#'
 #' tar <- c(6,9,13)
 #' fb <- fateBias(x,y,tar,z=NULL,minnr=5,minnrh=10,nbfactor=5,use.dist=FALSE,seed=NULL,nbtree=NULL)
 #' trc <- dptTraj(x,y,fb,trthr=.25,distance="euclidean",sigma=1000)
 #' n <- trc[["t6"]]
 #' fs  <- filterset(v,n,minexpr=2,minnumber=1)
+#' }
 #' @export
 filterset <- function(x,n=NULL,minexpr=2,minnumber=1){
-  if ( is.null(n) ) n <- names(x)
+  if ( is.null(n) ) n <- colnames(x)
   x[apply(x[,n] >= minexpr,1,sum) >= minnumber,n]
 }
 
@@ -919,9 +946,7 @@ filterset <- function(x,n=NULL,minexpr=2,minnumber=1){
 #' @description This function computes a topological ordering of pseudo-temporal expression profiles of all genes by using 1-dimensional self-organizing maps.
 #' @param x expression data frame with genes as rows and cells as columns. Gene IDs should be given as row names and cell IDs should be given as column names. The pseudo-temporal expression profile of each gene is defined by the order of cell IDs, i. e. columns, in \code{x}.
 #' @param nb positive integer number. Number of nodes of the self-organizing map. Default value is 1000.
-#' @param k positive integer number. Pseudo-temporal expression profiles are either derived using a running mean of expression values across the ordered cells with window-size \code{k}, or by a local regression (if \code{locreg} is \code{TRUE}). Default value is 5.
-#' @param locreg logical value. If \code{TRUE}, then pseudo-temporal expression profiles are derived by a local regression of expression values across the ordered cells using the function \code{loess} from the package \pkg{stats}. Default value is \code{TRUE}.
-#' @param alpha positive real number. This is the parameter, which controls the degree of smoothing. Larger values return smoother profiles. Default value is 0.5.
+#' @param alpha positive real number. Pseudo-temporal expression profiles are derived by a local regression of expression values across the ordered cells using the function \code{loess} from the package \pkg{stats}. This is the parameter, which controls the degree of smoothing. Larger values return smoother profiles. Default value is 0.5.
 #' @return A list of the following three components:
 #' \item{som}{a \code{som} object returned by the function \code{som} of the package \pkg{som}}
 #' \item{x}{pseudo-temporal expression profiles, i. e. the input expression data frame \code{x} after smoothing by running mean or local regression, respectivey, and normalization. The sum of smoothened gene expression values across all cells is normalized to 1.}
@@ -939,23 +964,20 @@ filterset <- function(x,n=NULL,minexpr=2,minnumber=1){
 #' pr <- prcurve(y,fb,dr,k=2,m="cmd",trthr=0.4,start=NULL)
 #' n <- pr$trc[["t6"]]
 #' fs  <- filterset(v,n,minexpr=2,minnumber=1)
-#' s1d <- getsom(fs,nb=1000,k=5,locreg=TRUE,alpha=.5)
+#' s1d <- getsom(fs,nb=1000,alpha=.5)
 #' }
 #'
 #' @importFrom stats var predict loess
-#' @importFrom zoo rollmean
 #' @importFrom som som
 #' @export
-getsom <- function(x,nb=1000,k=5,locreg=TRUE,alpha=.5){
-  if ( locreg ){
+getsom <- function(x,nb=1000,alpha=.5){
+    n <- colnames(x)
     x <- t(apply(x,1,function(x,alpha){ v <- 1:length(x); predict(loess( x ~ v, span=alpha ))},alpha=alpha))
     x <- t(apply(x,1,function(x){ x[x<0] <- .1; x }))
-  }else{
-    x <- t(apply(x,1,rollmean,k=k))
-  }
-  x <- x/apply(x,1,sum)
-  zs <- ( x - apply(x,1,mean) )/sqrt ( apply(x,1,var) )
-  return( list(som=som(zs,1,nb),x=x,z=zs) )
+    x <- x/apply(x,1,sum)
+    zs <- ( x - apply(x,1,mean) )/sqrt ( apply(x,1,var) )
+    colnames(zs) <- colnames(x) <- n
+    return( list(som=som(zs,1,nb),x=x,z=zs) )
 }
 
 #' @title Processing of self-organizing maps for pseudo-temporal expression profiles
@@ -985,7 +1007,7 @@ getsom <- function(x,nb=1000,k=5,locreg=TRUE,alpha=.5){
 #' pr <- prcurve(y,fb,dr,k=2,m="cmd",trthr=0.4,start=NULL)
 #' n <- pr$trc[["t6"]]
 #' fs  <- filterset(v,n,minexpr=2,minnumber=1)
-#' s1d <- getsom(fs,nb=1000,k=5,locreg=TRUE,alpha=.5)
+#' s1d <- getsom(fs,nb=1000,alpha=.5)
 #' ps <- procsom(s1d,corthr=.85,minsom=3)
 #' }
 #'
@@ -1075,13 +1097,13 @@ procsom <- function(s1d,corthr=.85,minsom=3){
 #' pr <- prcurve(y,fb,dr,k=2,m="cmd",trthr=0.4,start=NULL)
 #' n <- pr$trc[["t6"]]
 #' fs  <- filterset(v,n,minexpr=2,minnumber=1)
-#' s1d <- getsom(fs,nb=1000,k=5,locreg=TRUE,alpha=.5)
+#' s1d <- getsom(fs,nb=1000,alpha=.5)
 #' ps <- procsom(s1d,corthr=.85,minsom=3)
 #' plotheatmap(ps$all.e,xpart=y[n],xcol=fcol,ypart=ps$nodes,xgrid=FALSE,ygrid=TRUE,xlab=FALSE)
 #' }
 #'
 #' @importFrom grDevices rainbow colorRampPalette adjustcolor
-#' @importFrom graphics layout plot points text image abline axis box legend lines par
+#' @importFrom graphics layout plot points text image abline axis box legend lines par rect
 #' @importFrom RColorBrewer brewer.pal
 #' @export
 plotheatmap <- function(x,xpart=NULL,xcol=NULL,xlab=TRUE,xgrid=FALSE,ypart=NULL,ycol=NULL,ylab=TRUE,ygrid=FALSE){
@@ -1094,19 +1116,21 @@ plotheatmap <- function(x,xpart=NULL,xcol=NULL,xlab=TRUE,xgrid=FALSE,ypart=NULL,
     ColorLevels <- seq(0.99*mi, 1.01*ma, length=length(ColorRamp))
   }
   par(mar = c(3,5,2.5,2))
-  image(t(as.matrix(x)),col=ColorRamp,axes=FALSE)
+  image(t(as.matrix(x)),col=ColorRamp,axes=FALSE,ylim=c(-.02,1))
   box()
   set.seed(20)
-  if ( !is.null(xpart) ){
-    tmp <- c()
-    for ( u in unique(xpart) ){
-      ol <- (0:(length(xpart) - 1)/(length(xpart) - 1))[xpart == u]
-     if ( !is.null(xcol) ) points(ol,rep(0,length(ol)),col=xcol[u],pch=15,cex=.75)
-      tmp <- append(tmp,mean(ol))
-      delta <- .5/(length(xpart) - 1)
-      if ( xgrid & max(ol) < 1) abline(v=max(ol) + delta,col="grey",lty=2)
-    }
-    if ( xlab ) axis(1,at=tmp,labels=unique(xpart))
+  if (!is.null(xpart)) {
+      tmp <- c()
+      width <- ( 1/length(xpart) )/2
+      k <- (0:(length(xpart) - 1)/(length(xpart) - 1))
+      rect(k - width,rep(-.02,length(xpart)),k + width,rep(-.005,length(xpart)),col=xcol[xpart],border=NA)
+      for ( u in unique(xpart) ){
+          ol <- (0:(length(xpart) - 1)/(length(xpart) - 1))[xpart == u]
+          tmp <- append(tmp, mean(ol))
+          delta <- 0.5/(length(xpart) - 1)
+          if (xgrid & max(ol) < 1) abline(v = max(ol) + delta, col = "grey", lty = 2)
+      }
+      if (xlab) axis(1, at = tmp, labels = unique(xpart))
   }
   set.seed(20)
   if ( !is.null(ypart) ){
@@ -1141,9 +1165,7 @@ plotheatmap <- function(x,xpart=NULL,xcol=NULL,xlab=TRUE,xgrid=FALSE,ypart=NULL,
 #' @param col optional vector of valid color names for all clusters in \code{y} ordered by increasing cluster number. Default value is \code{NULL}.
 #' @param name optional character string. This argument corresponds to a title for the plot. Default value is \code{NULL}. If not provided, and \code{g} is given, then \code{name} will equal \code{g} or \code{g[1]}, respectively, if \code{g} is a vector of gene IDs.
 #' @param cluster logical value. If \code{TRUE} then the partitioning along the x-axis is indicated be vertical lines representing the boundaries of all positions with a given value in \code{y}. The average position across all cells in a cluster will be indicated on the x-axis.
-#' @param k positive integer number. Pseudo-temporal expression profiles are either derived using a running mean of expression values across the ordered cells with window-size \code{k}, or by a local regression (if \code{locreg} is \code{TRUE}). Default value is 5.
-#' @param locreg logical value. If \code{TRUE}, then pseudo-temporal expression profiles are derived by a local regression of expression values across the ordered cells using the function \code{loess} from the package \pkg{stats}. Default value is \code{TRUE}.
-#' @param alpha positive real number. This is the parameter, which controls the degree of smoothing. Larger values return smoother profiles. Default value is 0.5.
+#' @param alpha positive real number. Pseudo-temporal expression profiles are derived by a local regression of expression values across the ordered cells using the function \code{loess} from the package \pkg{stats}. This is the parameter, which controls the degree of smoothing. Larger values return smoother profiles. Default value is 0.5.
 #' @param types optional vector with IDs for different subsets of cells in \code{y}, e. g. different batches. All cells with the same ID will be displayed by the same symbol and color. Default value is \code{NULL}
 #' @return None
 #' @examples
@@ -1159,19 +1181,18 @@ plotheatmap <- function(x,xpart=NULL,xcol=NULL,xlab=TRUE,xgrid=FALSE,ypart=NULL,
 #' pr <- prcurve(y,fb,dr,k=2,m="cmd",trthr=0.4,start=NULL)
 #' n <- pr$trc[["t6"]]
 #' fs  <- filterset(v,n,minexpr=2,minnumber=1)
-#' s1d <- getsom(fs,nb=1000,k=5,locreg=TRUE,alpha=.5)
+#' s1d <- getsom(fs,nb=1000,alpha=.5)
 #' ps <- procsom(s1d,corthr=.85,minsom=3)
 #' # plot average profile of all genes of node 1 in the self-organizing map
 #' g <- names(ps$nodes)[ps$nodes == 1]
-#' plotexpression(v,y,g,n,k=25,col=fcol,name="Node 1",cluster=FALSE,locreg=TRUE,alpha=.5,types=NULL)
+#' plotexpression(v,y,g,n,col=fcol,name="Node 1",cluster=FALSE,alpha=.5,types=NULL)
 #' }
 #'
 #' @importFrom grDevices rainbow colorRampPalette adjustcolor
 #' @importFrom graphics layout plot points text image abline axis box legend lines par
 #' @importFrom stats loess predict
-#' @importFrom zoo rollmean
 #' @export
-plotexpression <- function(x,y,g,n,col=NULL,name=NULL,cluster=FALSE,k=5,locreg=FALSE,alpha=.5,types=NULL){
+plotexpression <- function(x,y,g,n,col=NULL,name=NULL,cluster=FALSE,alpha=.5,types=NULL){
   cl <- unique(y[n])
   set.seed(111111)
   if ( is.null(col) ) col <- sample(rainbow(max(y)))
@@ -1203,14 +1224,11 @@ plotexpression <- function(x,y,g,n,col=NULL,name=NULL,cluster=FALSE,k=5,locreg=F
     if ( cluster ) abline(v=zc[i],col="grey",lty=2)
   }
   u <- 1:length(n)
-  if ( locreg ){
-    v <- as.vector(t(z))
-    zc <- predict(loess( v ~ u, span=alpha ))
-    zc[zc<0] <- .1
-    lines(u,zc)
-  }else{
-    lines(u,rollmean(t(z),k=k))
-  }
+ 
+  v <- as.vector(t(z))
+  zc <- predict(loess( v ~ u, span=alpha ))
+  zc[zc<0] <- .1
+  lines(u,zc)
   
   if ( !is.null(types) ) legend("topleft", legend=sort(unique(types)), col=coloc, pch=syms)
 
