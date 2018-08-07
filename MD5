@@ -1,12 +1,12 @@
-30f747ca1b7a0de383cf1917eea7a7a6 *DESCRIPTION
+bd67539c4500b7321932a67cf55df4e5 *DESCRIPTION
 ca8093efe44a31b312cea17a41446ba7 *NAMESPACE
-5176804eb07c76662c51a6bd2554f8d5 *R/FateID_functions.R
+170352f0f93d58c4f0d2bf20da19bda5 *R/FateID_functions.R
 a428006a569926d2ceebd338739d9a26 *R/intestine.R
 538d669953756bf7a5c95a97a36de656 *build/vignette.rds
 9b76cb960c1763ed25e6cea041dcd785 *data/intestine.RData
 c98674422bd32f89f1de40c935f89d00 *inst/doc/FateID.R
 ba81cac81636eb3d88ea7d5b598f5f6a *inst/doc/FateID.Rmd
-bbc77ac6f8b0f04750736b1be141c2fa *inst/doc/FateID.html
+f1daa3650740bcc2d4d7365957767d0c *inst/doc/FateID.html
 bb2b1aafc3a8f07215f8fb0d62c664d0 *man/compdr.Rd
 4d86a4fc638925761e4d08836e0ef9ea *man/diffexpnb.Rd
 4f7691026d2ea2996eb9a1c9579bfba9 *man/dptTraj.Rd
