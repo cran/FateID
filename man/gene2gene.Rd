@@ -4,8 +4,19 @@
 \alias{gene2gene}
 \title{Comparative plot of the expression levels of two genes}
 \usage{
-gene2gene(x, y, g1, g2, clusters = NULL, fb = NULL, tn = NULL,
-  col = NULL, tp = 1, plotnum = TRUE)
+gene2gene(
+  x,
+  y,
+  g1,
+  g2,
+  clusters = NULL,
+  fb = NULL,
+  tn = NULL,
+  col = NULL,
+  tp = 1,
+  plotnum = TRUE,
+  seed = 12345
+)
 }
 \arguments{
 \item{x}{expression data frame with genes as rows and cells as columns. Gene IDs should be given as row names and cell IDs should be given as column names. This can be a reduced expression table only including the features (genes) to be used in the analysis.}
@@ -27,6 +38,8 @@ gene2gene(x, y, g1, g2, clusters = NULL, fb = NULL, tn = NULL,
 \item{tp}{Transparency of points in the plot. Default value is 1, i. e. non-transparent.}
 
 \item{plotnum}{logical value. If \code{TRUE}, then cluster numbers are displayed on top of the data points. Default value is \code{TRUE}.}
+
+\item{seed}{integer number. Random seed for determining colour scheme. Default is 12345.}
 }
 \value{
 None

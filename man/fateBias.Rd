@@ -4,9 +4,22 @@
 \alias{fateBias}
 \title{Computation of fate bias}
 \usage{
-fateBias(x, y, tar, z = NULL, minnr = NULL, minnrh = NULL, adapt = TRUE,
-  confidence = 0.75, nbfactor = 5, use.dist = FALSE, seed = NULL,
-  nbtree = NULL, ...)
+fateBias(
+  x,
+  y,
+  tar,
+  z = NULL,
+  minnr = NULL,
+  minnrh = NULL,
+  adapt = TRUE,
+  confidence = 0.75,
+  nbfactor = 5,
+  use.dist = FALSE,
+  seed = NULL,
+  nbtree = NULL,
+  verbose = FALSE,
+  ...
+)
 }
 \arguments{
 \item{x}{expression data frame with genes as rows and cells as columns. Gene IDs should be given as row names and cell IDs should be given as column names. This can be a reduced expression table only including the features (genes) to be used in the analysis.}
@@ -32,6 +45,8 @@ fateBias(x, y, tar, z = NULL, minnr = NULL, minnrh = NULL, adapt = TRUE,
 \item{seed}{integer seed for initialization. If equal to \code{NULL} then each run will yield slightly different results due to the radomness of the random forest algorithm. Default is \code{NULL}}
 
 \item{nbtree}{integer value. If given, it specifies the number of trees for each random forest explicitely. Default is \code{NULL}.}
+
+\item{verbose}{logical. If \code{TRUE}, then print information to console.}
 
 \item{...}{additional arguments to be passed to the low level function \code{randomForest}.}
 }

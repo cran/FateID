@@ -4,13 +4,15 @@
 \name{intestine}
 \alias{intestine}
 \title{Single-cell transcriptome data of intestinal epithelial cells}
-\format{A list of the following 5 components:
+\format{
+A list of the following 5 components:
 \describe{
   \item{x}{data frame with genes as rows and cells as columns. This reduced data frame only contains expression of the most variable genes.}
   \item{y}{vector containing a clustering partition of the 278 cells into different cell types}
   \item{v}{data frame with genes as rows and cells as columns. This data frame contains expression of all genes.}
   \item{fcol}{vector containing colour values for all clusters in \code{y}}
-}}
+}
+}
 \usage{
 intestine
 }
@@ -21,7 +23,7 @@ None
 This dataset contains gene expression values, i. e. transcript counts, of 278 intestinal epithelial cells, and additional information on different cell types in this sample.
 }
 \references{
-Grün et al. (2013) Cell Stem Cell 19(2): 266-77
-(\href{https://www.ncbi.nlm.nih.gov/pubmed/27345837}{PubMed})
+Grün et al. (2016) Cell Stem Cell 19(2): 266-77
+(\href{https://pubmed.ncbi.nlm.nih.gov/27345837/}{PubMed})
 }
 \keyword{datasets}

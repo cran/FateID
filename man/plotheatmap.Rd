@@ -4,8 +4,18 @@
 \alias{plotheatmap}
 \title{Heatmap of expression profiles}
 \usage{
-plotheatmap(x, xpart = NULL, xcol = NULL, xlab = TRUE, xgrid = FALSE,
-  ypart = NULL, ycol = NULL, ylab = TRUE, ygrid = FALSE, cex = 1)
+plotheatmap(
+  x,
+  xpart = NULL,
+  xcol = NULL,
+  xlab = TRUE,
+  xgrid = FALSE,
+  ypart = NULL,
+  ycol = NULL,
+  ylab = TRUE,
+  ygrid = FALSE,
+  cex = 1
+)
 }
 \arguments{
 \item{x}{data frame with input data to show. Columns will be displayed on the x-axis and rows on the y-axis in the order given in \code{x}. For example, columns can correspond to cells in pseudo-temporal order and rows contain gene expression, i. e. rows can represent pseudo-temporal gene expression profiles.}
@@ -44,7 +54,7 @@ fcol <- intestine$col
 
 tar <- c(6,9,13)
 fb <- fateBias(x,y,tar,z=NULL,minnr=5,minnrh=10,nbfactor=5,use.dist=FALSE,seed=NULL,nbtree=NULL)
-dr <- compdr(x,z=NULL,m="cmd",k=2,lle.n=30,dm.sigma=1000,dm.distance="euclidean",tsne.perplexity=30)
+dr <- compdr(x,z=NULL,m="cmd",k=2,lle.n=30,tsne.perplexity=30)
 pr <- prcurve(y,fb,dr,k=2,m="cmd",trthr=0.4,start=NULL)
 n <- pr$trc[["t6"]]
 fs  <- filterset(v,n,minexpr=2,minnumber=1)
