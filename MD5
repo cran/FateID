@@ -1,12 +1,12 @@
-cd5c207f37dbaf0b5b8e0620d2ddde8a *DESCRIPTION
+49f2eb5d9de327b5c2b160bbee0035e6 *DESCRIPTION
 7f00ee1bb0a47ca3973c46bf98a0d3f8 *NAMESPACE
 bbfffc311b882712b83051324b21624d *R/FateID_functions.R
 0af0cd412f4aecf0f5affb4241f8f4a8 *R/intestine.R
 ec5a525de26119100cb969549be529e2 *build/vignette.rds
 9049188dc2d60ee0f447b68ea006c866 *data/intestine.RData
 60f1898ac84dfa1f9edb2c9b7337ff26 *inst/doc/FateID.R
-4c9f7ee8fed76d60d57bab70598d1bfd *inst/doc/FateID.Rmd
-e51ec086ae7a60307a1e4e4fc4c59fa1 *inst/doc/FateID.html
+98dbeeca147d2849bbd238d94f48dcd8 *inst/doc/FateID.Rmd
+ebe589155c6b85573fc32eeef6a68c10 *inst/doc/FateID.html
 292a6382f41eed69c99df624ba21fa09 *man/compdr.Rd
 12be8d71147faaf481859cfcbb5d0a9b *man/diffexpnb.Rd
 2f0181a73a440b1242c098b99e898a0c *man/fateBias.Rd
@@ -25,4 +25,4 @@ bdf3521c683f761f1e675e4ea6169de9 *man/plotdiffgenesnb.Rd
 2c5bd815aea0e889e157aca681573c1b *man/prcurve.Rd
 dddbb735c681775a9d0b5f7f4b71e089 *man/procsom.Rd
 6293fdc707310d7481a572dbb09fc8d7 *man/reclassify.Rd
-4c9f7ee8fed76d60d57bab70598d1bfd *vignettes/FateID.Rmd
+98dbeeca147d2849bbd238d94f48dcd8 *vignettes/FateID.Rmd
